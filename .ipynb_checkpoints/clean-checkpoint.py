@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------
 # File name: clean.py
-# Authors: Arjun Sai Krishnan, Carina Lewandowski
+# Authors: Arjun Sai-Krishnan, Carina Lewandowski
 # Description: series of functions for preprocessing hCoV sequences.
 # ---------------------------------------------------------------------------
 
