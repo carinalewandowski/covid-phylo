@@ -7,7 +7,10 @@
 # import modules from biopython
 from Bio import SeqIO, Seq
 
-BAD_SEQ_ID = 'hCoV-19/USA/NY-NYCPHL-000574/2020|EPI_ISL_632033|2020-04-01'
+BAD_SEQ_IDS = ['hCoV-19/USA/NY-NYCPHL-000574/2020|EPI_ISL_632033|2020-04-01',
+'hCoV-19/USA/NY-NYCPHL-001080/2020|EPI_ISL_633081|2020-10-17', 
+'hCoV-19/USA/NY-NYCPHL-000973/2020|EPI_ISL_633003|2020-09-23']
+
 
 # ---------------------------------------------------------------------------
 # REMOVE EXTRANEOUS SEQUENCES 
@@ -128,7 +131,7 @@ def compile_files(files, output_fname):
             # add county to record description
             record.description = record.description + '|' + county
             # remove bad sequences (those that cause several gaps in MAFFT alignment)
-            if record.id != BAD_SEQ_ID:
+            if record.id not in BAD_SEQ_IDS:
                 compiled_records.append(record)
     # write compiled records to specified output file
     SeqIO.write(compiled_records, output_fname, "fasta")
@@ -166,19 +169,49 @@ files = ['NY_files/albany.txt', 'NY_files/manhattan.txt', 'NY_files/richmond.txt
 'NY_files/putnam.txt', 'NY_files/westchester.txt', 'NY_files/jefferson.txt', 'NY_files/queens.txt']
 
 # STEP 1: compile files from counties into one file for the state
-'''compile_files(files, 'new_york_compiled.txt')'''
+#compile_files(files, 'new_york_compiled.txt')
 
 # STEP 2: remove extraneous sequences
-'''ny_records = list(SeqIO.parse('new_york_compiled.txt', "fasta"))
-remove_extr_seqs(ny_records, 'new_york_compiled_cleaned_NEW.txt')'''
+#ny_records = list(SeqIO.parse('new_york_compiled.txt', "fasta"))
+#remove_extr_seqs(ny_records, 'new_york_compiled_cleaned_NEW.txt')
 
 # STEP 3: Check length of cleaned records
-'''ny_records_cleaned = list(SeqIO.parse('new_york_compiled_cleaned_NEW.txt', "fasta"))
-print(len(ny_records_cleaned))'''
+#ny_records_cleaned = list(SeqIO.parse('new_york_compiled_cleaned_NEW.txt', "fasta"))
+#print(len(ny_records_cleaned))
 
 # STEP 4: After uploading to MAFFT, parse the results and trim gaps on the ends of each sequence
-'''ny_MAFFT_records = list(SeqIO.parse("ny_MAFFT_results3.txt", "fasta"))
-remove_gaps(ny_MAFFT_records, 'ny_aligned3.txt')'''
+#ny_MAFFT_records = list(SeqIO.parse("ny_MAFFT_results4.txt", "fasta"))
+#remove_gaps(ny_MAFFT_records, 'ny_aligned4.txt')
+
+# STEP 5: Remove remaining sequences with any gaps
+'''aligned_records = list(SeqIO.parse("ny_aligned4.txt", "fasta"))
+final_records = []
+for r in aligned_records:
+    if '-' not in r.seq:
+        final_records.append(r)
+SeqIO.write(final_records, 'final_ny_aligned.txt', "fasta")
+print(len(list(SeqIO.parse('final_ny_aligned.txt', "fasta"))))'''
+
+# STEP 6: Find segregating sites
+ny_aligned = list(SeqIO.parse('ny_aligned4.txt', "fasta"))
+seg_sites = find_seg_sites(ny_aligned)
+print("Number of segregating sites:", len(seg_sites))
+
+# STEP 6: 
+sites_of_interest = []
+for ss in seg_sites:
+    site = ss[0]
+    site_dict = ss[1]
+    if '-' not in site_dict:
+        sites_of_interest.append(site)
+print(len(sites_of_interest))
+
+
+
+
+# ---------------------------------------------------------------------------
+# Misc. Code for identifying corrupted sequences
+# ---------------------------------------------------------------------------
 
 # gaps: 21172:21226
 
@@ -192,6 +225,7 @@ remove_gaps(ny_MAFFT_records, 'ny_aligned3.txt')'''
 
 # find remaining frequencies of gap counts to determine what else should be removed
 '''gap_count_freqs = {}
+records_with_gaps = []
 for record in aligned_records:
     seq = record.seq
     count = 0
@@ -201,7 +235,31 @@ for record in aligned_records:
     if count not in gap_count_freqs:
         gap_count_freqs[count] = 1
     else: gap_count_freqs[count] += 1
+    if count != 3:
+        records_with_gaps.append(record)
 print(gap_count_freqs)'''
+
+'''for j,r in enumerate(records_with_gaps):
+    print(r.id)
+    seq = record.seq
+    max_gap_ct = 0
+    curr_gap_ct = 0
+    i = 0
+    idx = -1
+    while i < len(seq):
+        if j == 0 and curr_gap_ct != 0:
+            print(curr_gap_ct)
+        if seq[i] == '-':
+            curr_gap_ct += 1
+        if ((i == len(seq) - 1) or (seq[i+1] != '-')):
+            if curr_gap_ct > max_gap_ct: 
+                idx = i - 2
+                max_gap_ct = curr_gap_ct
+            curr_gap_ct = 0
+        i += 1
+    print(idx)
+    print('max contiguous gaps: ', max_gap_ct)
+    print('\n')'''
 
 # find first location of gaps
 '''seq = aligned_records[0].seq
