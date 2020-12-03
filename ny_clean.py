@@ -7,6 +7,8 @@
 # import modules from biopython
 from Bio import SeqIO, Seq
 
+BAD_SEQ_ID = 'hCoV-19/USA/NY-NYCPHL-000574/2020|EPI_ISL_632033|2020-04-01'
+
 # ---------------------------------------------------------------------------
 # REMOVE EXTRANEOUS SEQUENCES 
 # This chunk removes sequences that contain non-real bases or do not meet the 
@@ -54,35 +56,35 @@ def remove_extr_seqs(records, output_fname):
 # ---------------------------------------------------------------------------
 def remove_gaps(records, output_fname):
     # iterate over each record & parse its sequence as a string
+    max_gaps_beg = 0
+    max_gaps_end = 0
     for record in records:
         curr_seq = str(record.seq)
         # find length of consecutive gaps at the beginning of the seq
         i = 0
-        max_gaps_beg = 0
         while(curr_seq[i] == '-'):
             i += 1
         # find length of consecutive gaps at the end of the seq
-        j = -1
-        max_gaps_end = 0
+        j = -1  
         while(curr_seq[j] == '-'):
             j -= 1
         # updated max lengths
         if (i > max_gaps_beg): max_gaps_beg = i
-        if (-1*j > max_gaps_end): max_gaps_end = j
+        if (-1*j > max_gaps_end): max_gaps_end = -1*j
 
     updated_records = []
     # iterate over each record and trim front and back of sequences
     for record in records:
         new_record = record
-        new_seq = str(record.seq)[(max_gaps_beg - 1):(max_gaps_end + 1)]
+        new_seq = str(record.seq)[(max_gaps_beg - 1):(-1*max_gaps_end + 1)]
         new_seq = Seq.Seq(new_seq)
         new_record.seq = new_seq
         updated_records.append(new_record)
 
     # write trimmed records to a new text file in fasta format
     SeqIO.write(updated_records, output_fname, "fasta")
-    print("Trimmed from front: ", i)
-    print("Trimmed from back: ", j)
+    print("Trimmed from front: ", max_gaps_beg)
+    print("Trimmed from back: ", max_gaps_end)
 
 # ---------------------------------------------------------------------------
 # FIND SEGREGATING SITES
@@ -113,14 +115,22 @@ def find_seg_sites(records):
 
     return seg_sites
 
+# ---------------------------------------------------------------------------
+# COMPILE FILES (SEQS BY COUNTY --> SEQS BY STATE)
+# ---------------------------------------------------------------------------
 def compile_files(files, output_fname):
     compiled_records = []
     for f in files:
         records = list(SeqIO.parse(f, "fasta"))
+        # parse county from file name
         county = f[9:].replace('.txt', '')
         for record in records:
+            # add county to record description
             record.description = record.description + '|' + county
-            compiled_records.append(record)
+            # remove bad sequences (those that cause several gaps in MAFFT alignment)
+            if record.id != BAD_SEQ_ID:
+                compiled_records.append(record)
+    # write compiled records to specified output file
     SeqIO.write(compiled_records, output_fname, "fasta")
         
 
@@ -142,6 +152,11 @@ def compile_files(files, output_fname):
 # seg_sites = find_seg_sites(records3)
 # print("Number of segregating sites:", len(seg_sites))
 
+# ---------------------------------------------------------------------------
+# CLEANING
+# ---------------------------------------------------------------------------
+
+# list of SARS-CoV-2 data by county in NY
 files = ['NY_files/albany.txt', 'NY_files/manhattan.txt', 'NY_files/richmond.txt',
 'NY_files/bronx.txt', 'NY_files/montgomery.txt', 'NY_files/rockland.txt', 'NY_files/brooklyn.txt', 
 'NY_files/broome.txt', 'NY_files/new_rochelle.txt', 'NY_files/schenecktady.txt', 'NY_files/cayuga.txt',
@@ -150,11 +165,52 @@ files = ['NY_files/albany.txt', 'NY_files/manhattan.txt', 'NY_files/richmond.txt
 'NY_files/dutchess.txt', 'NY_files/passiac.txt', 'NY_files/washington.txt', 'NY_files/franklin.txt',
 'NY_files/putnam.txt', 'NY_files/westchester.txt', 'NY_files/jefferson.txt', 'NY_files/queens.txt']
 
-test_file = ['NY_files/cayuga.txt',]
-compile_files(files, 'new_york_compiled.txt')
+# STEP 1: compile files from counties into one file for the state
+'''compile_files(files, 'new_york_compiled.txt')'''
 
-ny_records = list(SeqIO.parse('new_york_compiled.txt', "fasta"))
-remove_extr_seqs(ny_records, 'new_york_compiled_cleaned.txt')
+# STEP 2: remove extraneous sequences
+'''ny_records = list(SeqIO.parse('new_york_compiled.txt', "fasta"))
+remove_extr_seqs(ny_records, 'new_york_compiled_cleaned_NEW.txt')'''
 
-ny_records_cleaned = list(SeqIO.parse('new_york_compiled_cleaned.txt', "fasta"))
-print(len(ny_records_cleaned))
+# STEP 3: Check length of cleaned records
+'''ny_records_cleaned = list(SeqIO.parse('new_york_compiled_cleaned_NEW.txt', "fasta"))
+print(len(ny_records_cleaned))'''
+
+# STEP 4: After uploading to MAFFT, parse the results and trim gaps on the ends of each sequence
+'''ny_MAFFT_records = list(SeqIO.parse("ny_MAFFT_results3.txt", "fasta"))
+remove_gaps(ny_MAFFT_records, 'ny_aligned3.txt')'''
+
+# gaps: 21172:21226
+
+#aligned_records = list(SeqIO.parse("ny_aligned3.txt", "fasta"))
+#print(aligned_records[0].seq)
+
+# identify sequence causing gaps at specified loci
+'''for record in aligned_records:
+    if record.seq[21172:21226] != '------------------------------------------------------':
+        print(record.id)'''
+
+# find remaining frequencies of gap counts to determine what else should be removed
+'''gap_count_freqs = {}
+for record in aligned_records:
+    seq = record.seq
+    count = 0
+    for i in range(len(seq)):
+        if seq[i] == '-':
+            count += 1
+    if count not in gap_count_freqs:
+        gap_count_freqs[count] = 1
+    else: gap_count_freqs[count] += 1
+print(gap_count_freqs)'''
+
+# find first location of gaps
+'''seq = aligned_records[0].seq
+for i in range(len(seq)):
+    if seq[i] == '-':
+        print(i)'''
+
+# identify sequence(s) causing gaps at specified locus
+'''for record in aligned_records:
+    seq = record.seq
+    if seq[25309] != '-':
+        print(record.id)'''
