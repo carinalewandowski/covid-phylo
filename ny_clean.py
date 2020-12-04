@@ -6,6 +6,8 @@
 
 # import modules from biopython
 from Bio import SeqIO, Seq
+# import matplotlib
+import matplotlib.pyplot as plt
 
 BAD_SEQ_IDS = ['hCoV-19/USA/NY-NYCPHL-000574/2020|EPI_ISL_632033|2020-04-01',
 'hCoV-19/USA/NY-NYCPHL-001080/2020|EPI_ISL_633081|2020-10-17', 
@@ -93,6 +95,7 @@ def remove_gaps(records, output_fname):
 # FIND SEGREGATING SITES
 # ---------------------------------------------------------------------------
 def find_seg_sites(records):
+    print('Finding segregating sites...') 
     site_dict = {}
     # iterate over each record & parse its sequence as a string
     for record in records:
@@ -116,6 +119,9 @@ def find_seg_sites(records):
         if (len(site_dict[site]) > 1):
             seg_sites.append((site, site_dict[site]))
 
+    print('find_seg_sites done.') 
+    print('Number of segregating sites:', len(seg_sites))
+
     return seg_sites
 
 # ---------------------------------------------------------------------------
@@ -136,7 +142,39 @@ def compile_files(files, output_fname):
     # write compiled records to specified output file
     SeqIO.write(compiled_records, output_fname, "fasta")
         
+# ---------------------------------------------------------------------------
+# REMOVE SEQUENCES WITH GAPS (after final alignment)
+# ---------------------------------------------------------------------------
+def remove_seqs_with_gaps(input_fname, output_fname):
+    print('Removing sequences with gaps...') 
+    aligned_records = list(SeqIO.parse(input_fname, "fasta"))
+    final_records = []
+    for r in aligned_records:
+        if '-' not in r.seq:
+            final_records.append(r)
+    SeqIO.write(final_records, output_fname, "fasta")
+    print('remove_seqs_with_gaps done.')
+    print('Number of remaining sequences: ', len(list(SeqIO.parse(output_fname, "fasta"))))
 
+# ---------------------------------------------------------------------------
+# FIND SNPs
+# ---------------------------------------------------------------------------
+def find_SNPs(input_fname): 
+    print('Finding SNPs...') 
+    ny_aligned = list(SeqIO.parse(input_fname, "fasta")) 
+    seg_sites = find_seg_sites(ny_aligned) 
+    print('List of SNPs:') 
+    snps = [] 
+    for ss in seg_sites: 
+        to_print = True 
+        for base in ss[1]: 
+            if ss[1][base] < 13: 
+                to_print = False # 13 = ~1% of total data 
+        if to_print: 
+            print('locus: ', ss[0], ss[1]) 
+            snps.append(ss) 
+    print('find_SNPs done.') 
+    return(snps)
 
 # ---------------------------------------------------------------------------
 # TESTING
@@ -183,21 +221,12 @@ files = ['NY_files/albany.txt', 'NY_files/manhattan.txt', 'NY_files/richmond.txt
 #ny_MAFFT_records = list(SeqIO.parse("ny_MAFFT_results4.txt", "fasta"))
 #remove_gaps(ny_MAFFT_records, 'ny_aligned4.txt')
 
-# STEP 5: Remove remaining sequences with any gaps
-'''aligned_records = list(SeqIO.parse("ny_aligned4.txt", "fasta"))
-final_records = []
-for r in aligned_records:
-    if '-' not in r.seq:
-        final_records.append(r)
-SeqIO.write(final_records, 'final_ny_aligned.txt', "fasta")
-print(len(list(SeqIO.parse('final_ny_aligned.txt', "fasta"))))'''
+# STEP 5: Find segregating sites
+#ny_aligned = list(SeqIO.parse('ny_aligned4.txt', "fasta"))
+#seg_sites = find_seg_sites(ny_aligned)
 
-# STEP 6: Find segregating sites
-ny_aligned = list(SeqIO.parse('ny_aligned4.txt', "fasta"))
-seg_sites = find_seg_sites(ny_aligned)
-print("Number of segregating sites:", len(seg_sites))
-
-# STEP 6: 
+# STEP 6: Find sites of interest (sites with no gaps)
+'''
 sites_of_interest = []
 for ss in seg_sites:
     site = ss[0]
@@ -205,9 +234,37 @@ for ss in seg_sites:
     if '-' not in site_dict:
         sites_of_interest.append(site)
 print(len(sites_of_interest))
+'''
+# STEP 7: Remove remaining sequences with any gaps. 
+#remove_seqs_with_gaps('ny_aligned4.txt', 'final_ny_aligned.txt')
 
+# STEP 8: Return to step 5. Repeat 5 and 6 and make sure that all remaining 
+# segregating sites are sites of interest.
 
+# ---------------------------------------------------------------------------
+# BUILDING SITE FREQUENCY SPECTRUM
+# ---------------------------------------------------------------------------
 
+# STEP 1: Find SNPs
+snps = find_SNPs('final_ny_aligned.txt')
+# dictionary ??
+sfs_dict = {}
+freqs = []
+for snp in snps: 
+    allele_distr = snp[1].values() 
+    freq_derived_allele = min(allele_distr) 
+    if freq_derived_allele not in sfs_dict: 
+        sfs_dict[freq_derived_allele] = 1 
+    else: 
+        sfs_dict[freq_derived_allele] += 1 
+    freqs.append(freq_derived_allele)
+print(sfs_dict)
+#plt.bar(sfs_dict.keys(), sfs_dict.values())
+plt.hist(freqs, density = True)
+plt.title('Site Frequency Spectrum')
+plt.xlabel('Derived Allele Frequency')
+plt.ylabel('Proportion of SNPs')
+plt.show()
 
 # ---------------------------------------------------------------------------
 # Misc. Code for identifying corrupted sequences
