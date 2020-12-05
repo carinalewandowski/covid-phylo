@@ -8,6 +8,11 @@
 from Bio import SeqIO, Seq
 # import matplotlib
 import matplotlib.pyplot as plt
+# from datetime import date 
+import numpy as np
+import sys
+from ete3 import Tree, NodeStyle, TreeStyle
+from Bio.Alphabet import IUPAC
 
 BAD_SEQ_IDS = ['hCoV-19/USA/NY-NYCPHL-000574/2020|EPI_ISL_632033|2020-04-01',
 'hCoV-19/USA/NY-NYCPHL-001080/2020|EPI_ISL_633081|2020-10-17', 
@@ -177,6 +182,57 @@ def find_SNPs(input_fname):
     return(snps)
 
 # ---------------------------------------------------------------------------
+# PLOT ALLELE FREQUENCIES OVER TIME
+# ---------------------------------------------------------------------------
+def SNP_time_plot(input_fname, locus): 
+    print('Computing allele frequencies...')
+    monthdict = {}
+    plotdict = {}
+    ny_aligned = list(SeqIO.parse(input_fname, "fasta")) 
+    for record in ny_aligned:
+        name = record.id
+        name = name.split(' ')
+        name = name[0].split('|')
+        time = name[-1]
+        time = time.split('-')
+        year = int(time[0])
+        month = int(time[1])
+        if len(time) < 3:
+            day = 1
+        else:
+            day = int(time[2])
+        # timestamp = datetime.date(year, month, day)
+        allele = str(record.seq[locus])
+        if month in monthdict:
+            if allele in monthdict[month]:
+                monthdict[month][allele] += 1
+            else:
+                monthdict[month][allele] = 1
+        else:
+            monthdict[month] = {}
+            monthdict[month][allele] = 1
+
+    keys = list(monthdict.keys())
+    keys.sort()
+
+    for month in keys:
+        total = sum(monthdict[month].values())
+        print(str(month) + " " + str(total))
+        right_place = list(monthdict.keys()).index(month)
+        for allele in monthdict[month]:
+            if allele not in plotdict:
+                plotdict[allele] = np.zeros(len(monthdict.keys()))
+                plotdict[allele][right_place] = (monthdict[month][allele])/(total)
+            else:
+                plotdict[allele][right_place] = (monthdict[month][allele])/(total)
+    
+    for allele in plotdict:
+        plt.plot(keys, plotdict[allele])
+    
+    plt.legend(list(plotdict.keys()))
+    return
+
+# ---------------------------------------------------------------------------
 # TESTING
 # ---------------------------------------------------------------------------
 
@@ -246,25 +302,77 @@ print(len(sites_of_interest))
 # ---------------------------------------------------------------------------
 
 # STEP 1: Find SNPs
-snps = find_SNPs('final_ny_aligned.txt')
-# dictionary ??
-sfs_dict = {}
-freqs = []
-for snp in snps: 
-    allele_distr = snp[1].values() 
-    freq_derived_allele = min(allele_distr) 
-    if freq_derived_allele not in sfs_dict: 
-        sfs_dict[freq_derived_allele] = 1 
-    else: 
-        sfs_dict[freq_derived_allele] += 1 
-    freqs.append(freq_derived_allele)
-print(sfs_dict)
-#plt.bar(sfs_dict.keys(), sfs_dict.values())
-plt.hist(freqs, density = True)
-plt.title('Site Frequency Spectrum')
-plt.xlabel('Derived Allele Frequency')
-plt.ylabel('Proportion of SNPs')
+# snps = find_SNPs('final_ny_aligned.txt')
+# # dictionary ??
+# sfs_dict = {}
+# freqs = []
+# for snp in snps: 
+#     allele_distr = snp[1].values() 
+#     freq_derived_allele = min(allele_distr) 
+#     if freq_derived_allele not in sfs_dict: 
+#         sfs_dict[freq_derived_allele] = 1 
+#     else: 
+#         sfs_dict[freq_derived_allele] += 1 
+#     freqs.append(freq_derived_allele)
+# print(sfs_dict)
+# #plt.bar(sfs_dict.keys(), sfs_dict.values())
+# plt.hist(freqs, density = True)
+# plt.title('Site Frequency Spectrum')
+# plt.xlabel('Derived Allele Frequency')
+# plt.ylabel('Proportion of SNPs')
+# plt.show()
+
+# SNP_time_plot('final_ny_aligned.txt', int(sys.argv[1]))
+# plt.show()
+
+# check_ends = list(SeqIO.parse("aligned_ref.txt", "fasta")) 
+# remove_gaps(check_ends, "dump.txt")
+
+# ---------------------------------------------------------------------------
+# ANNOTATE PHYLOGENY
+# ---------------------------------------------------------------------------
+SNP_time_plot('final_ny_aligned.txt', 610)
+plt.title("Frequency Plot for Locus 610+449")
 plt.show()
+
+# seqdict = {}
+# ny_aligned = list(SeqIO.parse('final_ny_aligned.txt', "fasta")) 
+# for record in ny_aligned:
+#     new = str(record.description).split(' ')
+#     # print(record.description)
+#     new = new[0] + '_' + new[1]
+#     new = new.replace('|', '_')
+#     seqdict[new]=str(record.seq)
+
+# t = Tree("final_ny_aligned.nh")
+
+# for n in t.traverse():
+#     if n.name != '':
+#         names = n.name.split('_', 1)
+#         new_name = names[1]
+#         if seqdict[new_name][28432] == 'A':
+#             nstyle = NodeStyle()
+#             nstyle["fgcolor"] = "red"
+#             nstyle["size"] = 15
+#             n.set_style(nstyle)
+
+# # for n in t.traverse():
+# #     print(n.name)
+# t.show()
+
+# ---------------------------------------------------------------------------
+# PHYLOGENY: PREP FOR BEAST
+# ---------------------------------------------------------------------------
+# Print file to NEXUS file
+# ny_aligned = list(SeqIO.parse('final_ny_aligned.txt', "fasta")) 
+# for record in ny_aligned:
+#     desc = record.description.split(" ")
+#     record.id = desc[1]
+#     record.description = desc[1]
+# SeqIO.write(ny_aligned, 'final_ny_aligned_name_fixed.txt', "fasta")
+# count = SeqIO.convert("final_ny_aligned_name_fixed.txt", "fasta", "final_ny_aligned.nex", "nexus", alphabet=IUPAC.ambiguous_dna)
+# print("Converted %i records" % count)
+
 
 # ---------------------------------------------------------------------------
 # Misc. Code for identifying corrupted sequences
