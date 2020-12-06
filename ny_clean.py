@@ -214,26 +214,26 @@ def find_SNPs_by_county(input_fname):
     return county_dict, num_records_by_county
 
 
-snp_counts, nums = find_SNPs_by_county('final_ny_aligned.txt')
-print(snp_counts)
-sites = [170, 610, 1468, 2588, 3664, 7629, 8333, 10402, 10634, 11467, 
-            13959, 14356, 14463, 15811, 16798, 18428, 18549, 19556, 20306, 
-            22954, 25114, 25695, 27695, 28372, 28432, 28433, 28434, 29091]
-labels = []
-for site in sites:
-    labels.append(str(site + REF_OFFSET))
+# snp_counts, nums = find_SNPs_by_county('final_ny_aligned.txt')
+# print(snp_counts)
+# sites = [170, 610, 1468, 2588, 3664, 7629, 8333, 10402, 10634, 11467, 
+#             13959, 14356, 14463, 15811, 16798, 18428, 18549, 19556, 20306, 
+#             22954, 25114, 25695, 27695, 28372, 28432, 28433, 28434, 29091]
+# labels = []
+# for site in sites:
+#     labels.append(str(site + REF_OFFSET))
 
-#sites = ['170', '610', '1468', '2588', '3664', '7629', '8333', '10402', '10634', '11467', 
-#            '13959', '14356', '14463', '15811', '16798', '18428', '18549', '19556', '20306', 
-#            '22954', '25114', '25695', '27695', '28372', '28432', '28433', '28434', '29091']
+# #sites = ['170', '610', '1468', '2588', '3664', '7629', '8333', '10402', '10634', '11467', 
+# #            '13959', '14356', '14463', '15811', '16798', '18428', '18549', '19556', '20306', 
+# #            '22954', '25114', '25695', '27695', '28372', '28432', '28433', '28434', '29091']
 
-for county in snp_counts:   
-    plt.bar(labels, snp_counts[county]/nums[county])
-    plt.xlabel("SNP Locus")
-    plt.xticks(rotation=45)
-    plt.ylabel("Percent Individuals with Derived Allele")
-    plt.title(county)
-    plt.show()
+# for county in snp_counts:   
+#     plt.bar(labels, snp_counts[county]/nums[county])
+#     plt.xlabel("SNP Locus")
+#     plt.xticks(rotation=45)
+#     plt.ylabel("Percent Individuals with Derived Allele")
+#     plt.title(county)
+#     plt.show()
 
 
 # ---------------------------------------------------------------------------
@@ -668,3 +668,64 @@ for i in range(len(seq)):
     seq = record.seq
     if seq[25309] != '-':
         print(record.id)'''
+
+# ---------------------------------------------------------------------------
+# EXPERIMENTS WITH NEW LARGER ALIGNMENT
+# ---------------------------------------------------------------------------
+# ny_aligned_LARGE = list(SeqIO.parse('new_compiled_aligned.txt', "fasta")) 
+# ny_aligned_original = list(SeqIO.parse('new_york_compiled.txt', "fasta")) 
+# record = ny_aligned_LARGE[0]
+# new_records = []
+
+# for i, s in enumerate(str(record.seq)):
+#     if s == '-':
+#         print(i)
+
+# NEW_BAD_SEQIDS = BAD_SEQ_IDS.copy()
+        
+# GAP_INDICES = [11074, 11075,  11076, 28253, 28254, 28255, 29897, 29898, 29899, 
+#                 29900, 29901, 29902, 29903, 29904, 29905, 29906, 29907, 29908]
+# print(len(ny_aligned_LARGE))
+# for record in ny_aligned_LARGE[1:]:
+#     for index in GAP_INDICES:
+#         if record.seq[index] != '-':
+#             if record.id not in NEW_BAD_SEQIDS:
+#                 NEW_BAD_SEQIDS.append(str(record.id))
+#                 print(record.id.split("|")[-1])
+
+# for record in ny_aligned_LARGE[1:]:
+#     if record.id not in NEW_BAD_SEQIDS:
+#         record.id = record.description
+#         new_records.append(record)
+# print(len(NEW_BAD_SEQIDS))
+
+# location_dict = {}
+# time_dict = {}
+
+# for record in new_records[1:]:
+#     location = record.id.split('|')[-1]
+#     time = record.id.split('|')[-2].split('-')[1]
+#     if location in location_dict:
+#         location_dict[location]+=1
+#     else:
+#         location_dict[location] = 1
+#     if time in time_dict:
+#         time_dict[time]+=1
+#     else:
+#         time_dict[time] = 1
+
+# print(time_dict)
+# print(location_dict)
+
+# final_records = []
+# for record in ny_aligned_original:
+#     if record.id not in NEW_BAD_SEQIDS:
+#         final_records.append(record)
+
+# SeqIO.write(final_records, "new_compiled.txt", 'fasta')
+
+# # READ IN NEW ALIGNMENT FROM MAFFT
+# ny_aligned_LARGE_NEW = list(SeqIO.parse('new_compiled_aligned_added.txt', "fasta")) 
+# print(find_seg_sites(ny_aligned_LARGE_NEW))
+# SNP_time_plot('new_compiled_aligned_added.txt', 28881)
+# plt.show()

@@ -1,4 +1,4 @@
-phy<-read.newick("reduced_tree_NY.nh")
+# phy<-read.newick("reduced_tree_NY.nh")
 
 collapse_identical_tips <- function(phy,tip_label){
   matching_tips <- which(phy$tip.label==tip_label)
@@ -33,8 +33,6 @@ plot(phy)
 phy <- collapse_identical_tips(phy,"GGG")
 phy <- collapse_identical_tips(phy,"AAC")
 
-ggphy<-read.tree("final_ny_aligned.nh")
-
-ggtree(ggphy, mrsd="2020-10-18") + 
-  theme_tree2() + 
-  xlim(2020, 2021)
+# file <- system.file("extdata/BEAST", "final_ny_aligned.tree", package="ggtree")
+ggphy <- read.beast("final_ny_aligned.tree")
+ggtree(ggphy, mrsd="2020-12-05") + theme_tree2()
