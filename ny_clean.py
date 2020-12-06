@@ -11,13 +11,14 @@ import matplotlib.pyplot as plt
 # from datetime import date 
 import numpy as np
 import sys
-from ete3 import Tree, NodeStyle, TreeStyle
-from Bio.Alphabet import IUPAC
+#from ete3 import Tree, NodeStyle, TreeStyle
+#from Bio.Alphabet import IUPAC
+import pandas as pd
 
 BAD_SEQ_IDS = ['hCoV-19/USA/NY-NYCPHL-000574/2020|EPI_ISL_632033|2020-04-01',
 'hCoV-19/USA/NY-NYCPHL-001080/2020|EPI_ISL_633081|2020-10-17', 
 'hCoV-19/USA/NY-NYCPHL-000973/2020|EPI_ISL_633003|2020-09-23']
-
+REF_OFFSET = 449
 
 # ---------------------------------------------------------------------------
 # REMOVE EXTRANEOUS SEQUENCES 
@@ -182,6 +183,60 @@ def find_SNPs(input_fname):
     return(snps)
 
 # ---------------------------------------------------------------------------
+# FIND SNPs BY COUNTY
+# ---------------------------------------------------------------------------
+def find_SNPs_by_county(input_fname):
+
+    derived_alleles = ['T', 'C', 'T', 'C', 'T', 'T', 'T', 'T', 'T', 'T',
+        'C', 'T', 'G', 'T', 'C', 'T', 'T', 'A', 'C', 'A', 'G', 'T', 'C', 'A',
+        'A', 'A', 'C', 'A']
+
+    sites = [170, 610, 1468, 2588, 3664, 7629, 8333, 10402, 10634, 11467, 
+            13959, 14356, 14463, 15811, 16798, 18428, 18549, 19556, 20306, 
+            22954, 25114, 25695, 27695, 28372, 28432, 28433, 28434, 29091]
+
+    ny_aligned = list(SeqIO.parse(input_fname, "fasta"))
+    county_dict = {}
+    num_records_by_county = {}
+    for record in ny_aligned:
+        county = record.description.split('|')[-1]
+        if county not in county_dict:
+            county_dict[county] = np.zeros(len(sites))
+        if county not in num_records_by_county:   
+            num_records_by_county[county] = 1
+        else:
+            num_records_by_county[county] += 1
+        for i in range(len(sites)):
+            curr_site = sites[i]
+            if record.seq[curr_site] == derived_alleles[i]:
+                county_dict[county][i] = county_dict[county][i] + 1
+    print(county_dict.keys())
+    return county_dict, num_records_by_county
+
+
+snp_counts, nums = find_SNPs_by_county('final_ny_aligned.txt')
+print(snp_counts)
+sites = [170, 610, 1468, 2588, 3664, 7629, 8333, 10402, 10634, 11467, 
+            13959, 14356, 14463, 15811, 16798, 18428, 18549, 19556, 20306, 
+            22954, 25114, 25695, 27695, 28372, 28432, 28433, 28434, 29091]
+labels = []
+for site in sites:
+    labels.append(str(site + REF_OFFSET))
+
+#sites = ['170', '610', '1468', '2588', '3664', '7629', '8333', '10402', '10634', '11467', 
+#            '13959', '14356', '14463', '15811', '16798', '18428', '18549', '19556', '20306', 
+#            '22954', '25114', '25695', '27695', '28372', '28432', '28433', '28434', '29091']
+
+for county in snp_counts:   
+    plt.bar(labels, snp_counts[county]/nums[county])
+    plt.xlabel("SNP Locus")
+    plt.xticks(rotation=45)
+    plt.ylabel("Percent Individuals with Derived Allele")
+    plt.title(county)
+    plt.show()
+
+
+# ---------------------------------------------------------------------------
 # PLOT ALLELE FREQUENCIES OVER TIME
 # ---------------------------------------------------------------------------
 def SNP_time_plot(input_fname, locus): 
@@ -226,11 +281,43 @@ def SNP_time_plot(input_fname, locus):
             else:
                 plotdict[allele][right_place] = (monthdict[month][allele])/(total)
     
-    for allele in plotdict:
-        plt.plot(keys, plotdict[allele])
+    #for allele in plotdict:
+        #plt.plot(keys, plotdict[allele])
     
-    plt.legend(list(plotdict.keys()))
-    return
+    #plt.legend(list(plotdict.keys()))
+    return keys, plotdict
+
+# ---------------------------------------------------------------------------
+# BUILD SNP TABLE
+# ---------------------------------------------------------------------------
+# Helpful resource: https://www.geeksforgeeks.org/create-a-pandas-dataframe-from-lists/
+def build_snp_table(input_fname, output_fname, c_derived_lb, c_genes):
+    snps = find_SNPs(input_fname)
+
+    c_loci = []
+    c_original_lb = []
+    c_original_fr = []
+    c_derived_lb =  c_derived_lb
+    c_derived_fr = []
+    c_genes = c_genes
+    print('Building SNP table...')
+    for i in range(len(snps)):
+        snp = snps[i]
+        c_loci.append(snp[0] + REF_OFFSET)
+        for key in snp[1]:
+            if key == c_derived_lb[i]:
+                c_derived_fr.append(snp[1][key])
+            else:
+                c_original_lb.append(key)
+                c_original_fr.append(snp[1][key])
+
+    df = pd.DataFrame(list(zip(c_loci, c_original_lb, c_original_fr, c_derived_lb, 
+                                c_derived_fr, c_genes)),
+                        columns=['Locus', 'Original Allele', 'Frequency', 
+                                    'Derived Allele', 'Frequency', 'Gene'])
+    df.to_csv(output_fname)
+    print('SNP data output to csv: ' + output_fname)
+
 
 # ---------------------------------------------------------------------------
 # TESTING
@@ -302,31 +389,107 @@ print(len(sites_of_interest))
 # ---------------------------------------------------------------------------
 
 # STEP 1: Find SNPs
-# snps = find_SNPs('final_ny_aligned.txt')
-# # dictionary ??
-# sfs_dict = {}
-# freqs = []
-# for snp in snps: 
-#     allele_distr = snp[1].values() 
-#     freq_derived_allele = min(allele_distr) 
-#     if freq_derived_allele not in sfs_dict: 
-#         sfs_dict[freq_derived_allele] = 1 
-#     else: 
-#         sfs_dict[freq_derived_allele] += 1 
-#     freqs.append(freq_derived_allele)
-# print(sfs_dict)
-# #plt.bar(sfs_dict.keys(), sfs_dict.values())
-# plt.hist(freqs, density = True)
-# plt.title('Site Frequency Spectrum')
-# plt.xlabel('Derived Allele Frequency')
-# plt.ylabel('Proportion of SNPs')
-# plt.show()
+'''
+snps = find_SNPs('final_ny_aligned.txt')
+'''
+
+# STEP 2: Create a list of derived alleles by inspecting the SNP time plots
+'''
+derived_alleles = ['T', 'C', 'T', 'C', 'T', 'T', 'T', 'T', 'T', 'T',
+'C', 'T', 'G', 'T', 'C', 'T', 'T', 'A', 'C', 'A', 'G', 'T', 'C', 'A',
+'A', 'A', 'C', 'A']
+'''
+
+# STEP 3: For each SNP, record the derived allele frequency
+'''sfs_dict = {}
+freqs = []
+for i in range(len(snps)): 
+    #allele_distr = snp[1].values() 
+    #freq_derived_allele = min(allele_distr) 
+    snp = snps[i]
+    freq_derived_allele = snp[1][derived_alleles[i]]
+    if freq_derived_allele not in sfs_dict: 
+        sfs_dict[freq_derived_allele] = 1 
+    else: 
+        sfs_dict[freq_derived_allele] += 1 
+    freqs.append(freq_derived_allele)
+print(sfs_dict)
+'''
+
+# STEP 4: Visualize as a histogram
+'''
+plt.hist(freqs)
+plt.title('Site Frequency Spectrum')
+plt.xlabel('Derived Allele Frequency')
+plt.ylabel('Number of SNPs')
+plt.show()
+'''
+
+# ---------------------------------------------------------------------------
+# SNP ANALYSIS
+# ---------------------------------------------------------------------------
 
 # SNP_time_plot('final_ny_aligned.txt', int(sys.argv[1]))
 # plt.show()
 
 # check_ends = list(SeqIO.parse("aligned_ref.txt", "fasta")) 
 # remove_gaps(check_ends, "dump.txt")
+
+# STEP 1: prepare variables
+# list of SNP loci (Want 7 plots with 4 subplots each)
+'''
+loci1 = [[170, 610], [1468, 2588]] 
+loci2 = [[3664, 7629], [8333, 10402]]
+loci3 = [[10634, 11467], [13959, 14356]]
+loci4 = [[14463, 15811], [16798, 18428]]
+loci5 = [[18549, 19556], [20306, 22954]]
+loci6 = [[25114, 25695], [27695, 28372]]
+loci7 = [[28432, 28433], [28434, 29091]]
+loci = [loci1, loci2, loci3, loci4, loci5, loci6, loci7]
+rows = 2 
+columns = 2
+sets = 7
+months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct']
+'''
+# STEP 2: Iterate over each set of loci and make 2x2 subplots
+# Helpful Resource: https://matplotlib.org/3.1.0/gallery/subplots_axes_and_figures/subplots_demo.html
+'''
+for k in range(sets):
+    curr_loci = loci[k]
+    fig, axs = plt.subplots(rows, columns)
+    for i in range(rows):
+        for j in range(columns):
+            keys, plotdict = SNP_time_plot('final_ny_aligned.txt', curr_loci[i][j])
+            for allele in plotdict:
+                axs[i,j].plot(months, plotdict[allele])
+            axs[i,j].legend(list(plotdict.keys()))
+            title = 'Locus ' + str(curr_loci[i][j] + REF_OFFSET)
+            axs[i,j].set_title(title)
+            axs[i,j].set_xticklabels(months, rotation=45)
+
+    for ax in axs.flat:
+        ax.set(xlabel='Time (months)', ylabel='Frequency')
+       
+
+    # Hide x labels and tick labels for top plots and y ticks for right plots.
+    for ax in axs.flat:
+        ax.label_outer()
+
+    plt.show()
+'''
+
+
+# STEP 3: Create a table of SNP data.
+c_derived_lb = ['T', 'C', 'T', 'C', 'T', 'T', 'T', 'T', 'T', 'T',
+    'C', 'T', 'G', 'T', 'C', 'T', 'T', 'A', 'C', 'A', 'G', 'T', 'C', 'A',
+    'A', 'A', 'C', 'A']
+
+c_genes = ['ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 
+    'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 
+    'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'S', 'ORF3a',
+    'ORF3a', 'ORF8', 'N', 'N', 'N', 'N', 'Intergenic']
+# build_snp_table('final_ny_aligned.txt', 'snp_data.csv', c_derived_lb, c_genes)
+
 
 # ---------------------------------------------------------------------------
 # ANNOTATE PHYLOGENY
@@ -361,6 +524,7 @@ print(len(sites_of_interest))
 # t.show()
 
 # WHEN THE NAMES ARE OK..
+'''
 seqdict = {}
 ny_aligned = list(SeqIO.parse('final_ny_aligned_name_fixed.txt', "fasta")) 
 for record in ny_aligned:
@@ -421,11 +585,11 @@ for n in t.traverse():
             n.name = 'GAC'
         if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'G':
             n.name = 'GGG'
-
+'''
 # for n in t.traverse():
 #     print(n.name)
 # t.show()
-t.write(format=1, outfile="reduced_tree_ny.nh")
+# t.write(format=1, outfile="reduced_tree_ny.nh")
 
 # ---------------------------------------------------------------------------
 # PHYLOGENY: PREP FOR BEAST
