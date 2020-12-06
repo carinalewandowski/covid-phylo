@@ -331,9 +331,9 @@ print(len(sites_of_interest))
 # ---------------------------------------------------------------------------
 # ANNOTATE PHYLOGENY
 # ---------------------------------------------------------------------------
-SNP_time_plot('final_ny_aligned.txt', 610)
-plt.title("Frequency Plot for Locus 610+449")
-plt.show()
+# SNP_time_plot('final_ny_aligned.txt', 610)
+# plt.title("Frequency Plot for Locus 610+449")
+# plt.show()
 
 # seqdict = {}
 # ny_aligned = list(SeqIO.parse('final_ny_aligned.txt', "fasta")) 
@@ -344,7 +344,7 @@ plt.show()
 #     new = new.replace('|', '_')
 #     seqdict[new]=str(record.seq)
 
-# t = Tree("final_ny_aligned.nh")
+# t = Tree("final_ny_aligned_newick.nh")
 
 # for n in t.traverse():
 #     if n.name != '':
@@ -359,6 +359,73 @@ plt.show()
 # # for n in t.traverse():
 # #     print(n.name)
 # t.show()
+
+# WHEN THE NAMES ARE OK..
+seqdict = {}
+ny_aligned = list(SeqIO.parse('final_ny_aligned_name_fixed.txt', "fasta")) 
+for record in ny_aligned:
+    # new = str(record.description).split(' ')
+    # # print(record.description)
+    # new = new[0] + '_' + new[1]
+    # new = new.replace('|', '_')
+    seqdict[record.id]=str(record.seq)
+
+t = Tree("final_ny_aligned_newick.nh")
+
+for n in t.traverse():
+    if n.name != '':
+        print(n.name)
+        # names = n.name.split('_', 1)
+        new_name = n.name.replace("\'", "")
+        if seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'C':
+            nstyle = NodeStyle()
+            nstyle["fgcolor"] = "red"
+            nstyle["size"] = 15
+            n.set_style(nstyle)
+            n.name = 'AAC'
+        if seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'G':
+            nstyle = NodeStyle()
+            nstyle["fgcolor"] = "yellow"
+            nstyle["size"] = 15
+            n.set_style(nstyle)
+            n.name = 'AAG'
+        if seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'C':
+            nstyle = NodeStyle()
+            nstyle["fgcolor"] = "purple"
+            nstyle["size"] = 15
+            n.set_style(nstyle)
+            n.name = 'AGC'
+        if seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'G':
+            nstyle = NodeStyle()
+            nstyle["fgcolor"] = "green"
+            nstyle["size"] = 15
+            n.set_style(nstyle)
+            n.name = 'AGG'
+        if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'G':
+            nstyle = NodeStyle()
+            nstyle["fgcolor"] = "grey"
+            nstyle["size"] = 15
+            n.set_style(nstyle)
+            n.name = 'GAG'
+        if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'C':
+            nstyle = NodeStyle()
+            nstyle["fgcolor"] = "light blue"
+            nstyle["size"] = 15
+            n.set_style(nstyle)
+            n.name = 'GGC'
+        if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'C':
+            nstyle = NodeStyle()
+            nstyle["fgcolor"] = "orange"
+            nstyle["size"] = 15
+            n.set_style(nstyle)
+            n.name = 'GAC'
+        if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'G':
+            n.name = 'GGG'
+
+# for n in t.traverse():
+#     print(n.name)
+# t.show()
+t.write(format=1, outfile="reduced_tree_ny.nh")
 
 # ---------------------------------------------------------------------------
 # PHYLOGENY: PREP FOR BEAST
