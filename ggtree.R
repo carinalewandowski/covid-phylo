@@ -34,5 +34,29 @@ phy <- collapse_identical_tips(phy,"GGG")
 phy <- collapse_identical_tips(phy,"AAC")
 
 # file <- system.file("extdata/BEAST", "final_ny_aligned.tree", package="ggtree")
-ggphy <- read.beast("final_ny_aligned.tree")
-ggtree(ggphy, mrsd="2020-12-05") + theme_tree2()
+ggphy <- read.beast("final_ny_aligned.tree") 
+
+tipcategories = read.csv("sites_28432_28434.csv", 
+                         header = TRUE, 
+                         stringsAsFactors = FALSE)
+dd = as.data.frame(tipcategories)
+
+p = ggtree(ggphy, mrsd="2020-12-05") + theme_tree2()
+
+my_colours <- c("black", "orange", "red", "blue")
+
+
+p %<+% dd + 
+  geom_tiplab(color = "black", # color for label font
+              geom = "label",  # labels not text
+              label.padding = unit(0.15, "lines"), # amount of padding around the labels
+              label.size = 0) + # size of label border
+              theme(legend.position = c(0.5,0.2),) # no keys
+
+library(ape)
+ntips = length(p$tip.label)
+
+#plot(p, tip.color = my_colours[as.factor(tipcategories$genotype)])
+
+# There is an attribute called show.tip.label, so let's set that to false for now
+plot(p,show.tip.label=FALSE)

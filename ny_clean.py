@@ -8,12 +8,13 @@
 from Bio import SeqIO, Seq
 # import matplotlib
 import matplotlib.pyplot as plt
-# from datetime import date 
+import datetime
 import numpy as np
 import sys
-#from ete3 import Tree, NodeStyle, TreeStyle
+from ete3 import Tree, NodeStyle, TreeStyle, random_color
 #from Bio.Alphabet import IUPAC
 import pandas as pd
+from collapsetree import collapse
 
 BAD_SEQ_IDS = ['hCoV-19/USA/NY-NYCPHL-000574/2020|EPI_ISL_632033|2020-04-01',
 'hCoV-19/USA/NY-NYCPHL-001080/2020|EPI_ISL_633081|2020-10-17', 
@@ -239,6 +240,9 @@ def find_SNPs_by_county(input_fname):
 # ---------------------------------------------------------------------------
 # PLOT ALLELE FREQUENCIES OVER TIME
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# BY MONTH
+# ---------------------------------------------------------------------------
 def SNP_time_plot(input_fname, locus): 
     print('Computing allele frequencies...')
     monthdict = {}
@@ -286,7 +290,69 @@ def SNP_time_plot(input_fname, locus):
     
     #plt.legend(list(plotdict.keys()))
     return keys, plotdict
+# ---------------------------------------------------------------------------
+# BY 10-DAY PERIODS
+# ---------------------------------------------------------------------------
+def SNP_time_plot_by_week(input_fname, locus): 
+    print('Computing allele frequencies...')
+    daydict = {}
+    plotdict = {}
+    ny_aligned = list(SeqIO.parse(input_fname, "fasta")) 
+    for record in ny_aligned:
+        name = record.id
+        name = name.split(' ')
+        name = name[0].split('|')
+        time = name[-2]
+        time = time.split('-')
+        year = int(time[0])
+        month = int(time[1])
+        if len(time) < 3:
+            day = 1
+        else:
+            day = int(time[2])
+        datestamp = datetime.datetime(year, month, day)
+        allele = str(record.seq[locus])
+        if datestamp in daydict:
+            if allele in daydict[datestamp]:
+                daydict[datestamp][allele] += 1
+            else:
+                daydict[datestamp][allele] = 1
+        else:
+            daydict[datestamp] = {}
+            daydict[datestamp][allele] = 1
 
+    keys = list(daydict.keys())
+    keys.sort()
+
+    plotdict["total"] = np.zeros(len(daydict.keys()))
+    plotdict["date"] = []
+
+    for day in keys:
+        total = sum(daydict[day].values())
+        right_place = list(daydict.keys()).index(day)
+        plotdict["total"][right_place] = total
+        plotdict["date"].append(day)
+        for allele in daydict[day]:
+            if allele not in plotdict:
+                plotdict[allele] = np.zeros(len(daydict.keys()))
+                plotdict[allele][right_place] = (daydict[day][allele])
+            else:
+                plotdict[allele][right_place] = (daydict[day][allele])
+  
+    df = pd.DataFrame.from_dict(plotdict)
+
+    g = pd.to_datetime(df['date']).dt.weekofyear
+
+    df = df.groupby(g.rename('epoch_week')).sum()
+    df.loc['Total'] = df.sum()
+    df = df.reset_index()
+
+    print(df)
+    df['A_freq'] = df['A']/df['total']
+    df['G_freq'] = df['G']/df['total']
+
+    #plt.legend(list(plotdict.keys()))
+    return keys, df
 # ---------------------------------------------------------------------------
 # BUILD SNP TABLE
 # ---------------------------------------------------------------------------
@@ -524,7 +590,7 @@ c_genes = ['ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab', 'ORF1ab',
 # t.show()
 
 # WHEN THE NAMES ARE OK..
-'''
+
 seqdict = {}
 ny_aligned = list(SeqIO.parse('final_ny_aligned_name_fixed.txt', "fasta")) 
 for record in ny_aligned:
@@ -534,62 +600,196 @@ for record in ny_aligned:
     # new = new.replace('|', '_')
     seqdict[record.id]=str(record.seq)
 
-t = Tree("final_ny_aligned_newick.nh")
+t = Tree("beast_tree_newick.nh")
 
-for n in t.traverse():
-    if n.name != '':
-        print(n.name)
-        # names = n.name.split('_', 1)
-        new_name = n.name.replace("\'", "")
-        if seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'C':
-            nstyle = NodeStyle()
-            nstyle["fgcolor"] = "red"
-            nstyle["size"] = 15
-            n.set_style(nstyle)
-            n.name = 'AAC'
-        if seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'G':
-            nstyle = NodeStyle()
-            nstyle["fgcolor"] = "yellow"
-            nstyle["size"] = 15
-            n.set_style(nstyle)
-            n.name = 'AAG'
-        if seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'C':
-            nstyle = NodeStyle()
-            nstyle["fgcolor"] = "purple"
-            nstyle["size"] = 15
-            n.set_style(nstyle)
-            n.name = 'AGC'
-        if seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'G':
-            nstyle = NodeStyle()
-            nstyle["fgcolor"] = "green"
-            nstyle["size"] = 15
-            n.set_style(nstyle)
-            n.name = 'AGG'
-        if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'G':
-            nstyle = NodeStyle()
-            nstyle["fgcolor"] = "grey"
-            nstyle["size"] = 15
-            n.set_style(nstyle)
-            n.name = 'GAG'
-        if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'C':
-            nstyle = NodeStyle()
-            nstyle["fgcolor"] = "light blue"
-            nstyle["size"] = 15
-            n.set_style(nstyle)
-            n.name = 'GGC'
-        if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'C':
-            nstyle = NodeStyle()
-            nstyle["fgcolor"] = "orange"
-            nstyle["size"] = 15
-            n.set_style(nstyle)
-            n.name = 'GAC'
-        if seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'G':
-            n.name = 'GGG'
-'''
+place_list = ['albany', 'manhattan', 'richmond',
+'bronx', 'montgomery', 'rockland', 'brooklyn', 
+'broome', 'new_rochelle', 'schenecktady', 'cayuga',
+'new_york', 'staten_island', 'chenango', 'ononda',
+'suffolk', 'clinton',	'orange', 'ulster',
+'dutchess', 'passiac', 'washington', 'franklin',
+'putnam', 'westchester', 'jefferson', 'queens']
+# color_list = ["red", "yellow", "blue", "green", "cyan", "magenta", "orange", "light blue", "grey", "purple", "brown", 
+#                 "pink", "light green"]
+color_list = random_color(num=len(place_list))
+color_list_mut = random_color(num=9)
+
+mut_list = ['AAC', 'AAG', 'AGC', 'AGG', 'GAG', 'GGC', 'GAC', 'GGG']
+
 # for n in t.traverse():
-#     print(n.name)
-# t.show()
-# t.write(format=1, outfile="reduced_tree_ny.nh")
+#     if n.name == '' or n.name == None:
+#         nstyle = NodeStyle()
+#         nstyle["fgcolor"] = "light grey"
+#         nstyle["size"] = 0
+#         n.set_style(nstyle)
+#     else:
+#         n.name = n.name.replace("\'", "")
+#         nstyle = NodeStyle()
+#         sequence = seqdict[n.name][28432:28435]
+#         color = color_list_mut[mut_list.index(sequence)]
+#         nstyle["hz_line_color"] = color
+#         nstyle["fgcolor"] = color
+#         n.set_style(nstyle)
+
+## --------------------------------------------------------------------------
+##  FOR TRIPLE MUTANT
+## --------------------------------------------------------------------------
+# for n in t.traverse():
+#     new_name = n.name.replace("\'", "")
+#     if n.name == None or '|' not in n.name:
+#         nstyle_blank = NodeStyle()
+#         nstyle_blank["fgcolor"] = color_list_mut[8]
+#         nstyle_blank["size"] = 0
+#         n.set_style(nstyle_blank)
+#         # print(n.name)
+#         # names = n.name.split('_', 1)
+#     elif seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'C':
+#         nstyle_AAC = NodeStyle()
+#         nstyle_AAC["fgcolor"] = "red"
+#         nstyle_AAC["hz_line_color"] = "red"
+#         # nstyle["fgcolor"] = color_list_mut[0]
+#         # nstyle["hz_line_color"] = color_list_mut[0]
+#         nstyle_AAC["size"] = 15
+#         n.set_style(nstyle_AAC)
+#         n.name = 'AAC'
+#     elif seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'G':
+#         nstyle_AAG = NodeStyle()
+#         # nstyle_AAG["fgcolor"] = "yellow"
+#         nstyle_AAG["fgcolor"] = color_list_mut[1]
+#         nstyle_AAG["hz_line_color"] = color_list_mut[1]
+#         nstyle_AAG["size"] = 15
+#         n.set_style(nstyle_AAG)
+#         n.name = 'AAG'
+#     elif seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'C':
+#         nstyle_AGC = NodeStyle()
+#         # nstyle_AGC["fgcolor"] = "purple"
+#         nstyle_AGC["fgcolor"] = color_list_mut[2]
+#         nstyle_AGC["hz_line_color"] = color_list_mut[2]
+#         nstyle_AGC["size"] = 15
+#         n.set_style(nstyle_AGC)
+#         n.name = 'AGC'
+#     elif seqdict[new_name][28432] == 'A' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'G':
+#         nstyle_AGG = NodeStyle()
+#         # nstyle_AGG["fgcolor"] = "green"
+#         nstyle_AGG["fgcolor"] = color_list_mut[3]
+#         nstyle_AGG["hz_line_color"] = color_list_mut[3]
+#         nstyle_AGG["size"] = 15
+#         n.set_style(nstyle_AGG)
+#         n.name = 'AGG'
+#     elif seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'G':
+#         nstyle_GAG = NodeStyle()
+#         # nstyle_GAG["fgcolor"] = "grey"
+#         nstyle_GAG["fgcolor"] = color_list_mut[4]
+#         nstyle_GAG["hz_line_color"] = color_list_mut[4]
+#         nstyle_GAG["size"] = 15
+#         n.set_style(nstyle_GAG)
+#         n.name = 'GAG'
+#     elif seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'C':
+#         nstyle_GGC = NodeStyle()
+#         # nstyle_GGC["fgcolor"] = "light blue"
+#         nstyle_GGC["fgcolor"] = color_list_mut[5]
+#         nstyle_GGC["hz_line_color"] = color_list_mut[5]
+#         nstyle_GGC["size"] = 15
+#         n.set_style(nstyle_GGC)
+#         n.name = 'GGC'
+#     elif seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'A' and seqdict[new_name][28434]== 'C':
+#         nstyle_GAC = NodeStyle()
+#         # nstyle_GAC["fgcolor"] = "orange"
+#         nstyle_GAC["fgcolor"] = color_list_mut[6]
+#         nstyle_GAC["hz_line_color"] = color_list_mut[6]
+#         nstyle_GAC["size"] = 15
+#         n.set_style(nstyle_GAC)
+#         n.name = 'GAC'
+#     elif seqdict[new_name][28432] == 'G' and seqdict[new_name][28433]== 'G' and seqdict[new_name][28434]== 'G':
+#         n.name = 'GGG'
+#         nstyle_GGG = NodeStyle()
+#         nstyle_GGG["fgcolor"] = color_list_mut[7]
+#         nstyle_GGG["hz_line_color"] = color_list_mut[7]
+#         nstyle_GGG["size"] = 15
+#         n.set_style(nstyle_GGG)
+#         # namesplit = new_name.split('|')
+#         # n.name = namesplit[-1]
+
+## --------------------------------------------------------------------------
+##  FOR DOUBLE MUTANT
+## --------------------------------------------------------------------------
+for n in t.traverse():
+    new_name = n.name.replace("\'", "")
+    if n.name == None or '|' not in n.name:
+        nstyle_blank = NodeStyle()
+        nstyle_blank["fgcolor"] = color_list_mut[8]
+        nstyle_blank["size"] = 0
+        n.set_style(nstyle_blank)
+    elif seqdict[new_name][18549] == 'C' and seqdict[new_name][29091] == 'G':
+        n.name = 'CG'
+        nstyle_CG = NodeStyle()
+        nstyle_CG["fgcolor"] = color_list_mut[0]
+        nstyle_CG["hz_line_color"] = color_list_mut[0]
+        nstyle_CG["size"] = 15
+        n.set_style(nstyle_CG)
+    elif seqdict[new_name][18549] == 'C' and seqdict[new_name][29091] == 'A':
+        n.name = 'CA'
+        nstyle_CA = NodeStyle()
+        nstyle_CA["fgcolor"] = color_list_mut[1]
+        nstyle_CA["hz_line_color"] = color_list_mut[1]
+        nstyle_CA["size"] = 15
+        n.set_style(nstyle_CA)
+    elif seqdict[new_name][18549] == 'T' and seqdict[new_name][29091] == 'G':
+        n.name = 'TG'
+        nstyle_TG = NodeStyle()
+        nstyle_TG["fgcolor"] = color_list_mut[2]
+        nstyle_TG["hz_line_color"] = color_list_mut[2]
+        nstyle_TG["size"] = 15
+        n.set_style(nstyle_TG)
+    elif seqdict[new_name][18549] == 'T' and seqdict[new_name][29091] == 'A':
+        n.name = 'TA'
+        nstyle_TA = NodeStyle()
+        nstyle_TA["fgcolor"] = color_list_mut[3]
+        nstyle_TA["hz_line_color"] = color_list_mut[3]
+        nstyle_TA["size"] = 15
+        n.set_style(nstyle_TA)
+
+# for n in t.traverse():
+#     if n.name != '':
+#         sequence = seqdict[n.name][28432:28435]
+#         if n.nstyle["fgcolor"] != color_list_mut[mut_list.index(sequence)]:
+
+
+# for bad in badlist:
+#     new_bad = bad.replace("\'", "")
+#     if new_bad in seqdict:
+#         print(seqdict[new_bad][28432:28435])
+#     else:
+#         print('Name: ' + str(bad))
+
+make_long = TreeStyle()
+make_long.scale = 1500
+# t.show(tree_style=make_long)
+# print(len(badlist))
+# print(badlist)
+# for n in t.traverse():
+#     if n.name == '':
+#         nstyle = NodeStyle()
+#         nstyle["fgcolor"] = "light grey"
+#         nstyle["size"] = 0
+#         n.set_style(nstyle)
+#     else:
+#         n.name = n.name.replace("\'", "")
+#         nstyle = NodeStyle()
+#         nstyle["hz_line_color"] = color_list[place_list.index(n.name.split('|')[-1])]
+#         nstyle["fgcolor"] = color_list[place_list.index(n.name.split('|')[-1])]
+#         n.set_style(nstyle)
+# make_long = TreeStyle()
+# make_long.scale = 15000
+collapse(t)
+collapse(t)
+collapse(t)
+collapse(t)
+collapse(t)
+# collapse(t)
+# collapse(t)
+t.show(tree_style=make_long)
+# t.write(format=1, outfile="place_name_tree_ny.nh")
 
 # ---------------------------------------------------------------------------
 # PHYLOGENY: PREP FOR BEAST
@@ -729,3 +929,17 @@ for i in range(len(seq)):
 # print(find_seg_sites(ny_aligned_LARGE_NEW))
 # SNP_time_plot('new_compiled_aligned_added.txt', 28881)
 # plt.show()
+
+# ny_aligned_for_R = list(SeqIO.parse('final_ny_aligned_name_fixed.txt', "fasta"))
+
+# id_list = []
+# genotype_list = []
+
+# for record in ny_aligned_for_R:
+#     id_list.append(record.id)
+#     genotype_list.append(record.seq[28432:28435])
+
+
+# df = pd.DataFrame(list(zip(id_list, genotype_list)),
+#                         columns=["id", "genotype"])
+# df.to_csv("sites_28432_28434.csv")
