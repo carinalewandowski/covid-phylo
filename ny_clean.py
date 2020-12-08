@@ -30,7 +30,7 @@ REF_OFFSET = 449
 # This chunk removes sequences that contain non-real bases or do not meet the 
 # length threshold.
 #
-# Author(s): Both (Arjun typed)
+# Author: Both (Arjun typed)
 # ---------------------------------------------------------------------------
 
 def remove_extr_seqs(records, output_fname): 

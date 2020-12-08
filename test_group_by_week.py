@@ -1,3 +1,9 @@
+# ---------------------------------------------------------------------------
+# File name: test_group_by_week.py
+# Authors: Arjun Sai Krishnan, Carina Lewandowski
+# Description: file for testing/visualizing SNP timeplots by week
+# ---------------------------------------------------------------------------
+
 from ny_clean import SNP_time_plot_by_week
 # import modules from biopython
 from Bio import SeqIO, Seq
@@ -6,13 +12,20 @@ import matplotlib.pyplot as plt
 import datetime
 import numpy as np
 import sys
-#from ete3 import Tree, NodeStyle, TreeStyle, random_color
-#from Bio.Alphabet import IUPAC
+from ete3 import Tree, NodeStyle, TreeStyle, random_color
+from Bio.Alphabet import IUPAC
 import pandas as pd
-#from collapsetree import collapse
+from collapsetree import collapse
 
+# ---------------------------------------------------------------------------
+# SNP TIMEPLOTS (BY WEEK)
+# Author: Both
+# ---------------------------------------------------------------------------
+
+# define constants
+# constant for the offset of our data from the reference sequence
 REF_OFFSET = 449
-
+# x-axis labels for plots 
 week_labels = ['Mar 2', 'Mar 9', 'Mar 16', 'Mar 23', 'Mar 30', 'Apr 6', 'Apr 13', 
                 'Apr 20', 'Apr 27', 'May 4', 'May 11']
 
